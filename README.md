@@ -17,3 +17,10 @@ let value = std::num::NonZeroU32::new(raw).ok_or(ParseError::ZeroValue)?;
 
 Все Err(ParseError) заменены на конкретные варианты (Err(ParseError::InvalidNumber), Err(ParseError::ExpectedTag) и т.д.). Возвращаемые значения stdp::U32 обёрнуты в NonZeroU32 через вспомогательную функцию fn nzu(n: u32) ->
 NonZeroU32.
+
+
+FIX #2
+1. pub struct AuthData(Box<[u8; AUTHDATA_SIZE]>) — 1024 байта теперь хранятся на куче; сама структура на стеке занимает лишь указатель (8 байт). Заодно исправлен вариант перечисления AppLogTraceKind::Connect, который раньше тащил
+   1024 байта на стек при каждом обращении к AppLogTraceKind.
+2. Тело парсера — результат обёрнут в Box::new(...). Массив собирается из Vec<u8> через try_into() 
+3. Тест — конструкция AuthData(Box::new([...])) обновлена в соответствии с новым типом.
