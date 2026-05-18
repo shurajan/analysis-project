@@ -28,6 +28,7 @@ pub trait MyReader: std::io::Read + std::fmt::Debug + 'static {}
 impl<T: std::io::Read + std::fmt::Debug + 'static> MyReader for T {}
 // подсказка: вместо trait-объекта можно дженерик
 /// Итератор, на выходе которого - строки распарсенной структуры данных
+#[allow(dead_code)]
 #[derive(Debug)]
 struct LogIterator {
     lines: std::iter::Filter<

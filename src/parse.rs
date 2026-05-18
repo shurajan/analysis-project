@@ -1,11 +1,11 @@
-/// Трейт, чтобы **реализовывать** и **требовать** метод 'распарсь и покажи,
-/// что распарсить осталось'
+// Трейт, чтобы **реализовывать** и **требовать** метод 'распарсь и покажи,
+// что распарсить осталось'
 trait Parser {
     type Dest;
     fn parse<'a>(&self, input: &'a str) -> Result<(&'a str, Self::Dest), ParseError>;
 }
-/// Вспомогательный трейт, чтобы писать собственный десериализатор
-/// (по решаемой задаче - отдалённый аналог `serde::Deserialize`)
+// Вспомогательный трейт, чтобы писать собственный десериализатор
+// (по решаемой задаче - отдалённый аналог `serde::Deserialize`)
 trait Parsable: Sized {
     type Parser: Parser<Dest = Self>;
     fn parser() -> Self::Parser;
@@ -67,6 +67,7 @@ mod stdp {
         }
     }
     /// Знаковые числа
+    #[allow(dead_code)]
     #[derive(Debug)]
     pub struct I32;
     impl Parser for I32 {
@@ -104,6 +105,7 @@ mod stdp {
 }
 
 /// Обернуть строку в кавычки, экранировав кавычки, которые в строке уже есть
+#[allow(dead_code)]
 fn quote(input: &str) -> String {
     let mut result = String::from("\"");
     result.extend(
@@ -120,6 +122,7 @@ fn quote(input: &str) -> String {
 }
 /// Распарсить строку, которую ранее [обернули в кавычки](quote)
 // `"abc\"def\\ghi"nice` -> (`abcd"def\ghi`, `nice`)
+#[allow(dead_code)]
 fn do_unquote<'a>(input: &'a str) -> Result<(&'a str, String), ParseError> {
     let mut result = String::new();
     let mut escaped_now = false;
@@ -170,6 +173,7 @@ fn unquote() -> Unquote {
     Unquote
 }
 /// Парсер, возвращающий результат как есть
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AsIs;
 impl Parser for AsIs {
@@ -369,6 +373,7 @@ where
 }
 /// Конструктор [All] для трёх парсеров
 /// (в Rust нет чего-то, вроде variadic templates из C++)
+#[allow(dead_code)]
 fn all3<A0: Parser, A1: Parser, A2: Parser>(a0: A0, a1: A1, a2: A2) -> All<(A0, A1, A2)> {
     All {
         parser: (a0, a1, a2),
@@ -394,6 +399,7 @@ where
 }
 /// Конструктор [All] для четырёх парсеров
 /// (в Rust нет чего-то, вроде variadic templates из C++)
+#[allow(dead_code)]
 fn all4<A0: Parser, A1: Parser, A2: Parser, A3: Parser>(
     a0: A0,
     a1: A1,
@@ -772,6 +778,7 @@ impl Parsable for AuthData {
     }
 }
 
+#[allow(dead_code)]
 /// Конструкция 'либо-либо'
 enum Either<Left, Right> {
     Left(Left),
@@ -779,6 +786,7 @@ enum Either<Left, Right> {
 }
 
 /// Статус, которые можно парсить
+#[allow(dead_code)]
 enum Status {
     Ok,
     Err(String),
