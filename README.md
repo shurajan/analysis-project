@@ -1,6 +1,6 @@
 FiX #1
 1. Изменил сигнатуру на fn parse<'a>(&self, input:&'a str)->Result<(&'a str, Self::Dest), ParseError>;
-   Избавился от лишних String::clone() и .to_string() 
+   и избавился от лишних String::clone() и .to_string() в реализациях. 
 2. Добавлен ParseError с конкретными вариантами типами ошибок
 3. stdp::U32 — переход на tight-тип std::num::NonZeroU32
 
@@ -10,17 +10,29 @@ FiX #1
 let value = std::num::NonZeroU32::new(raw).ok_or(ParseError::ZeroValue)?;
 Это устраняет if-ветку: невозможность ноля закодирована в типе.
 
-4. Там, где результат stdp::U32 использовался как u32 (Backet, UserCash, AppLogJournalKind::CreateUser/RegisterAsset, LogLine), в типовой аннотации fn((String, u32))->Self заменено на fn((String, NonZeroU32))->Self, а в теле функции
+4. Там, где результат stdp::U32 использовался как u32 (Backet, UserCash, AppLogJournalKind::CreateUser/RegisterAsset, 
+LogLine), в типовой аннотации fn((String, u32))->Self заменено на fn((String, NonZeroU32))->Self, а в теле функции
 добавлено .get() при заполнении поля структуры (поля структур остались u32).
 
 4. Обновлены тесты
 
-Все Err(ParseError) заменены на конкретные варианты (Err(ParseError::InvalidNumber), Err(ParseError::ExpectedTag) и т.д.). Возвращаемые значения stdp::U32 обёрнуты в NonZeroU32 через вспомогательную функцию fn nzu(n: u32) ->
+Все Err(ParseError) заменены на конкретные варианты (Err(ParseError::InvalidNumber), Err(ParseError::ExpectedTag) 
+и т.д.). Возвращаемые значения stdp::U32 обёрнуты в NonZeroU32 через вспомогательную функцию fn nzu(n: u32) ->
 NonZeroU32.
 
 
 FIX #2
-1. pub struct AuthData(Box<[u8; AUTHDATA_SIZE]>) — 1024 байта теперь хранятся на куче; сама структура на стеке занимает лишь указатель (8 байт). Заодно исправлен вариант перечисления AppLogTraceKind::Connect, который раньше тащил
+1. pub struct AuthData(Box<[u8; AUTHDATA_SIZE]>) — 1024 байта теперь хранятся на куче; сама структура на стеке занимает лишь указатель (8 байт). 
+   Заодно исправлен вариант перечисления AppLogTraceKind::Connect, который раньше тащил
    1024 байта на стек при каждом обращении к AppLogTraceKind.
 2. Тело парсера — результат обёрнут в Box::new(...). Массив собирается из Vec<u8> через try_into() 
 3. Тест — конструкция AuthData(Box::new([...])) обновлена в соответствии с новым типом.
+
+FIX #3
+
+1. Новый публичный трейт Parse — добавлен с единственным методом parse_str. В его сигнатуре нет внутренних типов (Map, Delimited, Alt и т.д.), поэтому Rust не жалуется на утечку приватных типов в публичный интерфейс. Parser и
+   Parsable остались приватными.
+2. Бланкетная реализация impl<T: Parsable> Parse for T — все типы, реализующие приватный Parsable, автоматически получают и публичный Parse. Связь между внутренним и внешним слоями прозрачна для компилятора, но скрыта от
+   пользователя библиотеки.
+3. Шесть функций just_parse_* заменены одной pub fn just_parse<T: Parse> — вместо just_parse_asset_dsc, just_parse_backet, just_user_cash, just_user_backet, just_user_backets и just_parse_anouncements теперь одна дженерик-функция.
+   В main.rs вызов обновлён до just_parse::<Announcements>(parsing_demo).

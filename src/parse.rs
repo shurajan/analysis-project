@@ -11,6 +11,16 @@ trait Parsable : Sized {
     fn parser () -> Self::Parser;
 }
 
+/// Публичный трейт: распарсить `&str` в `Self`
+pub trait Parse : Sized {
+    fn parse_str(input: &str) -> Result<(&str, Self), ParseError>;
+}
+impl<T: Parsable> Parse for T {
+    fn parse_str(input: &str) -> Result<(&str, Self), ParseError> {
+        T::parser().parse(input)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
     /// Ожидался конкретный тег или префикс, но он не найден
@@ -791,31 +801,9 @@ impl Parsable for Announcements {
     }
 }
 
-// просто обёртки
-// подсказка: почему бы не заменить на один дженерик?
-/// Обёртка для парсинга [AssetDsc]
-pub fn just_parse_asset_dsc(input: &str) -> Result<(&str, AssetDsc), ParseError> {
-    <AssetDsc as Parsable>::parser().parse(input)
-}
-/// Обёртка для парсинга [Backet]
-pub fn just_parse_backet(input: &str) -> Result<(&str, Backet), ParseError> {
-    <Backet as Parsable>::parser().parse(input)
-}
-/// Обёртка для парсинга [UserCash]
-pub fn just_user_cash(input: &str) -> Result<(&str, UserCash), ParseError> {
-    <UserCash as Parsable>::parser().parse(input)
-}
-/// Обёртка для парсинга [UserBacket]
-pub fn just_user_backet(input: &str) -> Result<(&str, UserBacket), ParseError> {
-    <UserBacket as Parsable>::parser().parse(input)
-}
-/// Обёртка для парсинга [UserBackets]
-pub fn just_user_backets(input: &str) -> Result<(&str, UserBackets), ParseError> {
-    <UserBackets as Parsable>::parser().parse(input)
-}
-/// Обёртка для парсинга [Announcements]
-pub fn just_parse_anouncements(input: &str) -> Result<(&str, Announcements), ParseError> {
-    <Announcements as Parsable>::parser().parse(input)
+/// Обёртка для парсинга любого типа, реализующего [Parse]
+pub fn just_parse<T: Parse>(input: &str) -> Result<(&str, T), ParseError> {
+    T::parse_str(input)
 }
 
 /// Все виды логов
