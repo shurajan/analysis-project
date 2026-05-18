@@ -106,17 +106,15 @@ pub fn read_log(
                 )
             }
             else if mode == READ_MODE_EXCHANGES {
-                matches!(
-                    &log.kind,
-                    LogKind::App(AppLogKind::Journal(
-                        AppLogJournalKind::BuyAsset(_)
-                        | AppLogJournalKind::SellAsset(_)
-                        | AppLogJournalKind::CreateUser{..}
-                        | AppLogJournalKind::RegisterAsset{..}
-                        | AppLogJournalKind::DepositCash(_)
-                        | AppLogJournalKind::WithdrawCash(_)
-                    ))
-                )
+                matches!(&log.kind, LogKind::App(AppLogKind::Journal(j)) if matches!(
+                    j.as_ref(),
+                    AppLogJournalKind::BuyAsset(_)
+                    | AppLogJournalKind::SellAsset(_)
+                    | AppLogJournalKind::CreateUser{..}
+                    | AppLogJournalKind::RegisterAsset{..}
+                    | AppLogJournalKind::DepositCash(_)
+                    | AppLogJournalKind::WithdrawCash(_)
+                ))
             }
             else {
                 // подсказка: паниковать в библиотечном коде - нехорошо

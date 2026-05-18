@@ -1022,7 +1022,7 @@ pub enum SystemLogErrorKind {
 pub enum AppLogKind {
     Error(AppLogErrorKind),
     Trace(AppLogTraceKind),
-    Journal(AppLogJournalKind),
+    Journal(Box<AppLogJournalKind>),
 }
 /// Error [приложения](AppLogKind)
 #[derive(Debug, Clone, PartialEq)]
@@ -1030,7 +1030,7 @@ pub enum AppLogErrorKind {
     LackOf(String),
     SystemError(String),
 }
-// подсказка: а поля не слишком много места на стэке занимают?
+
 /// Trace [приложения](AppLogKind)
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppLogTraceKind {
@@ -1409,7 +1409,7 @@ impl Parsable for AppLogKind {
                 map(AppLogErrorKind::parser(), |error| AppLogKind::Error(error)),
                 map(AppLogTraceKind::parser(), |trace| AppLogKind::Trace(trace)),
                 map(AppLogJournalKind::parser(), |journal| {
-                    AppLogKind::Journal(journal)
+                    AppLogKind::Journal(Box::new(journal))
                 }),
             ),
         ))
@@ -1721,35 +1721,39 @@ mod test {
             ),
             Ok((
                 "",
-                LogKind::App(AppLogKind::Journal(AppLogJournalKind::CreateUser {
-                    user_id: "Steeve".into(),
-                    authorized_capital: 10_000
-                }))
+                LogKind::App(AppLogKind::Journal(Box::new(
+                    AppLogJournalKind::CreateUser {
+                        user_id: "Steeve".into(),
+                        authorized_capital: 10_000
+                    }
+                )))
             ))
         );
         assert_eq!(
             LogKind::parser().parse(r#"App::Journal DeleteUser {"user_id": "Steeve",}"#),
             Ok((
                 "",
-                LogKind::App(AppLogKind::Journal(AppLogJournalKind::DeleteUser {
-                    user_id: "Steeve".into()
-                }))
+                LogKind::App(AppLogKind::Journal(Box::new(
+                    AppLogJournalKind::DeleteUser {
+                        user_id: "Steeve".into()
+                    }
+                )))
             ))
         );
-        assert_eq!(LogKind::parser().parse(r#"App::Journal RegisterAsset {"asset_id": "bayc", "liquidity": 100000000, "user_id": "Steeve",}"#), Ok(("", LogKind::App(AppLogKind::Journal(AppLogJournalKind::RegisterAsset{asset_id: "bayc".into(), user_id: "Steeve".into(), liquidity: 100_000_000})))));
+        assert_eq!(LogKind::parser().parse(r#"App::Journal RegisterAsset {"asset_id": "bayc", "liquidity": 100000000, "user_id": "Steeve",}"#), Ok(("", LogKind::App(AppLogKind::Journal(Box::new(AppLogJournalKind::RegisterAsset{asset_id: "bayc".into(), user_id: "Steeve".into(), liquidity: 100_000_000}))))));
         assert_eq!(
             LogKind::parser()
                 .parse(r#"App::Journal DepositCash UserCash{"user_id": "Steeve", "count": 10,}"#),
             Ok((
                 "",
-                LogKind::App(AppLogKind::Journal(AppLogJournalKind::DepositCash(
-                    UserCash {
+                LogKind::App(AppLogKind::Journal(Box::new(
+                    AppLogJournalKind::DepositCash(UserCash {
                         user_id: "Steeve".into(),
                         count: 10
-                    }
+                    })
                 )))
             ))
         );
-        assert_eq!(LogKind::parser().parse(r#"App::Journal BuyAsset UserBacket{"user_id": "Steeve", "backet": Backet{"asset_id":"bayc","count":1,},}"#), Ok(("", LogKind::App(AppLogKind::Journal(AppLogJournalKind::BuyAsset(UserBacket{user_id: "Steeve".into(), backet: Backet{asset_id: "bayc".into(),count:1}}))))));
+        assert_eq!(LogKind::parser().parse(r#"App::Journal BuyAsset UserBacket{"user_id": "Steeve", "backet": Backet{"asset_id":"bayc","count":1,},}"#), Ok(("", LogKind::App(AppLogKind::Journal(Box::new(AppLogJournalKind::BuyAsset(UserBacket{user_id: "Steeve".into(), backet: Backet{asset_id: "bayc".into(),count:1}})))))));
     }
 }

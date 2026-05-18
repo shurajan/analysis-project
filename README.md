@@ -1,6 +1,6 @@
 FiX #1
 1. Изменил сигнатуру на fn parse<'a>(&self, input:&'a str)->Result<(&'a str, Self::Dest), ParseError>;
-   и избавился от лишних String::clone() и .to_string() в реализациях. 
+   и избавился от лишних String::clone() и .to_string() в реализациях.
 2. Добавлен ParseError с конкретными вариантами типами ошибок
 3. stdp::U32 — переход на tight-тип std::num::NonZeroU32
 
@@ -41,3 +41,6 @@ FIX #4 излишний singleton
 1. Удалены LogLineParser и LOG_LINE_PARSER из parse.rs — структура и статик существовали только ради OnceLock, чтобы не пересобирать парсер на каждом вызове. Но все комбинаторы (Map, Delimited, Alt и т.д.) — это zero-sized types:
    они не хранят данных и не выделяют память. Пересборка дерева парсера на каждом вызове ничего не стоит, кэшировать нечего.
 2. lib.rs обновлён — вместо LOG_LINE_PARSER.parse(line.trim()) теперь just_parse::<LogLine>(line.trim()), что полностью эквивалентно по поведению и стоимости.
+
+FIX #5 - pub enum AppLogKind (можно было обойтись, так как экономия всего 32 байта в стеке)
+Перешел на Journal(Box<AppLogJournalKind>) вместо Journal(AppLogJournalKind)                                                                                                                                                                         
