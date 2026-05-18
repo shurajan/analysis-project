@@ -51,7 +51,7 @@
 fn main() {
     println!("Placeholder для экспериментов с cli");
 
-    let parsing_demo = r#"[UserBackets{"user_id":"Bob","backets":[Backet{"asset_id":"milk","count":3,},],},]"#.to_string();
+    let parsing_demo = r#"[UserBackets{"user_id":"Bob","backets":[Backet{"asset_id":"milk","count":3,},],},]"#;
     let announcements = analysis::parse::just_parse_anouncements(parsing_demo).unwrap();
     println!("demo-parsed: {:?}", announcements);
 
