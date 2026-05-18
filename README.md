@@ -1,4 +1,6 @@
-1. fn parse<'a>(&self, input:&'a str)->Result<(&'a str, Self::Dest), ParseError>;
+FiX #1
+1. Изменил сигнатуру на fn parse<'a>(&self, input:&'a str)->Result<(&'a str, Self::Dest), ParseError>;
+   Избавился от лишних String::clone() и .to_string() 
 2. Добавлен ParseError с конкретными вариантами типами ошибок
 3. stdp::U32 — переход на tight-тип std::num::NonZeroU32
 
@@ -8,9 +10,7 @@
 let value = std::num::NonZeroU32::new(raw).ok_or(ParseError::ZeroValue)?;
 Это устраняет if-ветку: невозможность ноля закодирована в типе.
 
-3. Обновлены типовые аннотации и тела парсеров в Parsable-реализациях
-
-Там, где результат stdp::U32 использовался как u32 (Backet, UserCash, AppLogJournalKind::CreateUser/RegisterAsset, LogLine), в типовой аннотации fn((String, u32))->Self заменено на fn((String, NonZeroU32))->Self, а в теле функции
+4. Там, где результат stdp::U32 использовался как u32 (Backet, UserCash, AppLogJournalKind::CreateUser/RegisterAsset, LogLine), в типовой аннотации fn((String, u32))->Self заменено на fn((String, NonZeroU32))->Self, а в теле функции
 добавлено .get() при заполнении поля структуры (поля структур остались u32).
 
 4. Обновлены тесты
