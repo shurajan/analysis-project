@@ -36,3 +36,8 @@ FIX #3
    пользователя библиотеки.
 3. Шесть функций just_parse_* заменены одной pub fn just_parse<T: Parse> — вместо just_parse_asset_dsc, just_parse_backet, just_user_cash, just_user_backet, just_user_backets и just_parse_anouncements теперь одна дженерик-функция.
    В main.rs вызов обновлён до just_parse::<Announcements>(parsing_demo).
+
+FIX #4 излишний singleton
+1. Удалены LogLineParser и LOG_LINE_PARSER из parse.rs — структура и статик существовали только ради OnceLock, чтобы не пересобирать парсер на каждом вызове. Но все комбинаторы (Map, Delimited, Alt и т.д.) — это zero-sized types:
+   они не хранят данных и не выделяют память. Пересборка дерева парсера на каждом вызове ничего не стоит, кэшировать нечего.
+2. lib.rs обновлён — вместо LOG_LINE_PARSER.parse(line.trim()) теперь just_parse::<LogLine>(line.trim()), что полностью эквивалентно по поведению и стоимости.
