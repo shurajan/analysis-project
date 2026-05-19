@@ -1377,7 +1377,7 @@ impl Parsable for AppLogJournalKind {
                 ),
                 map(
                     preceded(strip_whitespace(tag("WithdrawCash")), UserCash::parser()),
-                    |user_cash| AppLogJournalKind::DepositCash(user_cash),
+                    |user_cash| AppLogJournalKind::WithdrawCash(user_cash),
                 ),
                 map(
                     preceded(strip_whitespace(tag("BuyAsset")), UserBacket::parser()),
@@ -1755,5 +1755,41 @@ mod test {
             ))
         );
         assert_eq!(LogKind::parser().parse(r#"App::Journal BuyAsset UserBacket{"user_id": "Steeve", "backet": Backet{"asset_id":"bayc","count":1,},}"#), Ok(("", LogKind::App(AppLogKind::Journal(Box::new(AppLogJournalKind::BuyAsset(UserBacket{user_id: "Steeve".into(), backet: Backet{asset_id: "bayc".into(),count:1}})))))));
+        assert_eq!(
+            LogKind::parser().parse(r#"System::Error AccessDenied "not authorized""#),
+            Ok((
+                "",
+                LogKind::System(SystemLogKind::Error(SystemLogErrorKind::AccessDenied(
+                    "not authorized".into()
+                )))
+            ))
+        );
+        assert_eq!(
+            LogKind::parser()
+                .parse(r#"App::Journal UnregisterAsset {"asset_id": "milk", "user_id": "Bob",}"#),
+            Ok((
+                "",
+                LogKind::App(AppLogKind::Journal(Box::new(
+                    AppLogJournalKind::UnregisterAsset {
+                        asset_id: "milk".into(),
+                        user_id: "Bob".into()
+                    }
+                )))
+            ))
+        );
+        assert_eq!(
+            LogKind::parser().parse(
+                r#"App::Journal WithdrawCash UserCash{"user_id": "Alice", "count": 500,}"#
+            ),
+            Ok((
+                "",
+                LogKind::App(AppLogKind::Journal(Box::new(
+                    AppLogJournalKind::WithdrawCash(UserCash {
+                        user_id: "Alice".into(),
+                        count: 500
+                    })
+                )))
+            ))
+        );
     }
 }

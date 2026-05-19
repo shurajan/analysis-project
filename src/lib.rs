@@ -151,4 +151,34 @@ App::Journal BuyAsset UserBacket{"user_id":"Alice","backet":Backet{"asset_id":"m
         // второе число - число пустых строк, которые оставлены для удобства чтения
         assert_eq!(all_parsed.len(), SOURCE.lines().count() - 2 - 7);
     }
+
+    #[test]
+    fn test_errors_mode() {
+        let errors = read_log(SOURCE.as_bytes(), ReadMode::Errors, vec![]);
+        assert_eq!(errors.len(), 7);
+        assert!(errors.iter().all(|log| matches!(
+            &log.kind,
+            LogKind::System(SystemLogKind::Error(_)) | LogKind::App(AppLogKind::Error(_))
+        )));
+    }
+
+    #[test]
+    fn test_exchanges_mode() {
+        let exchanges = read_log(SOURCE.as_bytes(), ReadMode::Exchanges, vec![]);
+        assert_eq!(exchanges.len(), 6);
+        assert!(exchanges.iter().all(|log| matches!(
+            &log.kind,
+            LogKind::App(AppLogKind::Journal(_))
+        )));
+    }
+
+    #[test]
+    fn test_request_id_filter() {
+        let filtered = read_log(SOURCE.as_bytes(), ReadMode::All, vec![1]);
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.iter().all(|log| log.request_id == 1));
+
+        let multi = read_log(SOURCE.as_bytes(), ReadMode::All, vec![1, 3]);
+        assert_eq!(multi.len(), 10);
+    }
 }

@@ -72,3 +72,11 @@ FIX #9
 - В main.rs: Box<dyn analysis::MyReader> → обычный std::fs::File
 - В тестах: Box::new(SOURCE.as_bytes()) → SOURCE.as_bytes()
 
+FIX #10
+- Исправлен баг: WithdrawCash маппился в DepositCash — теперь маппится в WithdrawCash (parse.rs:1380)
+- Новые тесты в parse.rs (test_log_kind): AccessDenied, UnregisterAsset, WithdrawCash
+- Новые тесты в lib.rs:
+   - test_errors_mode — проверяет ReadMode::Errors, ожидает 7 ошибочных строк
+   - test_exchanges_mode — проверяет ReadMode::Exchanges, ожидает 6 биржевых операций
+   - test_request_id_filter — фильтрация по одному и двум request_id
+
