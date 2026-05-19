@@ -112,7 +112,7 @@
 ## FIX #9 — Дженерик вместо трейт-объекта MyReader
 
 `MyReader` был workaround для ограничения Rust E0225 — нельзя написать
-`Box<dyn Read + Debug + 'static>`, поэтому три ограничения объединялись в один суpertrait.
+`Box<dyn Read + Debug + 'static>`, поэтому три ограничения объединялись в один trait.
 Заменено на дженерик:
 
 - Удалены `pub trait MyReader` и его blanket impl.
