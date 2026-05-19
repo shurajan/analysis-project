@@ -80,3 +80,8 @@ FIX #10
    - test_exchanges_mode — проверяет ReadMode::Exchanges, ожидает 6 биржевых операций
    - test_request_id_filter — фильтрация по одному и двум request_id
 
+FIX #11
+- args[1] → args.get(1) с проверкой: если аргумент не передан, выводит Usage: <binary> <logfile> и выходит с кодом 1
+- just_parse(...).unwrap() → match с eprintln! и exit(1) при ошибке парсинга
+- File::open(...).unwrap() → match с сообщением failed to open '<file>': <os error> и exit(1)
+- current_dir().unwrap() → unwrap_or_else(|_| "<unknown>".into()) — некритичная ошибка, не прерывает работу

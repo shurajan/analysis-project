@@ -1778,9 +1778,8 @@ mod test {
             ))
         );
         assert_eq!(
-            LogKind::parser().parse(
-                r#"App::Journal WithdrawCash UserCash{"user_id": "Alice", "count": 500,}"#
-            ),
+            LogKind::parser()
+                .parse(r#"App::Journal WithdrawCash UserCash{"user_id": "Alice", "count": 500,}"#),
             Ok((
                 "",
                 LogKind::App(AppLogKind::Journal(Box::new(

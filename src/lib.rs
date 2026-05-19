@@ -166,10 +166,11 @@ App::Journal BuyAsset UserBacket{"user_id":"Alice","backet":Backet{"asset_id":"m
     fn test_exchanges_mode() {
         let exchanges = read_log(SOURCE.as_bytes(), ReadMode::Exchanges, vec![]);
         assert_eq!(exchanges.len(), 6);
-        assert!(exchanges.iter().all(|log| matches!(
-            &log.kind,
-            LogKind::App(AppLogKind::Journal(_))
-        )));
+        assert!(
+            exchanges
+                .iter()
+                .all(|log| matches!(&log.kind, LogKind::App(AppLogKind::Journal(_))))
+        );
     }
 
     #[test]

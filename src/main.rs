@@ -53,18 +53,37 @@ fn main() {
 
     let parsing_demo =
         r#"[UserBackets{"user_id":"Bob","backets":[Backet{"asset_id":"milk","count":3,},],},]"#;
-    let announcements =
-        analysis::parse::just_parse::<analysis::parse::Announcements>(parsing_demo).unwrap();
-    println!("demo-parsed: {:?}", announcements);
+    match analysis::parse::just_parse::<analysis::parse::Announcements>(parsing_demo) {
+        Ok(announcements) => println!("demo-parsed: {:?}", announcements),
+        Err(e) => {
+            eprintln!("parse error in demo: {:?}", e);
+            std::process::exit(1);
+        }
+    }
 
     let args = std::env::args().collect::<Vec<_>>();
-    let filename = args[1].clone();
+    let filename = match args.get(1) {
+        Some(f) => f.clone(),
+        None => {
+            eprintln!("Usage: {} <logfile>", args[0]);
+            std::process::exit(1);
+        }
+    };
+
+    let cwd = std::env::current_dir().unwrap_or_else(|_| "<unknown>".into());
     println!(
         "Trying opening file '{}' from directory '{}'",
         filename,
-        std::env::current_dir().unwrap().to_string_lossy()
+        cwd.to_string_lossy()
     );
-    let file = std::fs::File::open(filename).unwrap();
+
+    let file = match std::fs::File::open(&filename) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("failed to open '{}': {}", filename, e);
+            std::process::exit(1);
+        }
+    };
 
     let logs = analysis::read_log(file, analysis::ReadMode::All, vec![]);
     println!("got logs:");
