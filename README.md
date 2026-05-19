@@ -1,87 +1,143 @@
-FiX #1
-1. Изменил сигнатуру на fn parse<'a>(&self, input:&'a str)->Result<(&'a str, Self::Dest), ParseError>;
-   и избавился от лишних String::clone() и .to_string() в реализациях.
-2. Добавлен ParseError с конкретными вариантами типами ошибок
-3. stdp::U32 — переход на tight-тип std::num::NonZeroU32
+# analysis-project — журнал изменений
 
-Было: type Dest = u32, с явной проверкой if value == 0 { return Err(ParseError) }.
+## FIX #1 — Сигнатуры, ParseError, NonZeroU32
 
-Стало: type Dest = std::num::NonZeroU32. Проверка на ноль теперь выполняется через систему типов:
-let value = std::num::NonZeroU32::new(raw).ok_or(ParseError::ZeroValue)?;
-Это устраняет if-ветку: невозможность ноля закодирована в типе.
+1. Изменена сигнатура парсера:
+   ```rust
+   fn parse<'a>(&self, input: &'a str) -> Result<(&'a str, Self::Dest), ParseError>;
+   ```
+   Убраны лишние `String::clone()` и `.to_string()` в реализациях.
 
-4. Там, где результат stdp::U32 использовался как u32 (Backet, UserCash, AppLogJournalKind::CreateUser/RegisterAsset, 
-LogLine), в типовой аннотации fn((String, u32))->Self заменено на fn((String, NonZeroU32))->Self, а в теле функции
-добавлено .get() при заполнении поля структуры (поля структур остались u32).
+2. Добавлен `ParseError` с конкретными вариантами ошибок.
 
-4. Обновлены тесты
+3. `stdp::U32` — переход на tight-тип `std::num::NonZeroU32`.
 
-Все Err(ParseError) заменены на конкретные варианты (Err(ParseError::InvalidNumber), Err(ParseError::ExpectedTag) 
-и т.д.). Возвращаемые значения stdp::U32 обёрнуты в NonZeroU32 через вспомогательную функцию fn nzu(n: u32) ->
-NonZeroU32.
+   **Было:** `type Dest = u32` с явной проверкой `if value == 0 { return Err(...) }`.
 
+   **Стало:** `type Dest = std::num::NonZeroU32`. Проверка на ноль выполняется через систему типов:
+   ```rust
+   let value = std::num::NonZeroU32::new(raw).ok_or(ParseError::ZeroValue)?;
+   ```
+   Невозможность нуля закодирована в типе — `if`-ветка больше не нужна.
 
-FIX #2
-1. pub struct AuthData(Box<[u8; AUTHDATA_SIZE]>) — 1024 байта теперь хранятся на куче; сама структура на стеке занимает лишь указатель (8 байт). 
-   Заодно исправлен вариант перечисления AppLogTraceKind::Connect, который раньше тащил
-   1024 байта на стек при каждом обращении к AppLogTraceKind.
-2. Тело парсера — результат обёрнут в Box::new(...). Массив собирается из Vec<u8> через try_into() 
-3. Тест — конструкция AuthData(Box::new([...])) обновлена в соответствии с новым типом.
+4. Там где результат `stdp::U32` использовался как `u32` (`Backet`, `UserCash`,
+   `AppLogJournalKind::CreateUser/RegisterAsset`, `LogLine`), аннотация
+   `fn((String, u32)) -> Self` заменена на `fn((String, NonZeroU32)) -> Self`,
+   а в теле добавлено `.get()` при заполнении поля структуры (поля остались `u32`).
 
-FIX #3
+5. Обновлены тесты: все `Err(ParseError)` заменены на конкретные варианты,
+   возвращаемые значения `stdp::U32` обёрнуты в `NonZeroU32` через вспомогательную для тестов функцию:
+   ```rust
+   fn nzu(n: u32) -> NonZeroU32 { NonZeroU32::new(n).unwrap() }
+   ```
 
-1. Новый публичный трейт Parse — добавлен с единственным методом parse_str. В его сигнатуре нет внутренних типов (Map, Delimited, Alt и т.д.), поэтому Rust не жалуется на утечку приватных типов в публичный интерфейс. Parser и
-   Parsable остались приватными.
-2. Бланкетная реализация impl<T: Parsable> Parse for T — все типы, реализующие приватный Parsable, автоматически получают и публичный Parse. Связь между внутренним и внешним слоями прозрачна для компилятора, но скрыта от
-   пользователя библиотеки.
-3. Шесть функций just_parse_* заменены одной pub fn just_parse<T: Parse> — вместо just_parse_asset_dsc, just_parse_backet, just_user_cash, just_user_backet, just_user_backets и just_parse_anouncements теперь одна дженерик-функция.
-   В main.rs вызов обновлён до just_parse::<Announcements>(parsing_demo).
+---
 
-FIX #4 излишний singleton
-1. Удалены LogLineParser и LOG_LINE_PARSER из parse.rs — структура и статик существовали только ради OnceLock, чтобы не пересобирать парсер на каждом вызове. Но все комбинаторы (Map, Delimited, Alt и т.д.) — это zero-sized types:
-   они не хранят данных и не выделяют память. Пересборка дерева парсера на каждом вызове ничего не стоит, кэшировать нечего.
-2. lib.rs обновлён — вместо LOG_LINE_PARSER.parse(line.trim()) теперь just_parse::<LogLine>(line.trim()), что полностью эквивалентно по поведению и стоимости.
+## FIX #2 — AuthData на куче
 
-FIX #5 - pub enum AppLogKind (можно было обойтись, так как экономия всего 32 байта в стеке)
-Перешел на Journal(Box<AppLogJournalKind>) вместо Journal(AppLogJournalKind)                                                                                                                                                                         
+1. `pub struct AuthData(Box<[u8; AUTHDATA_SIZE]>)` — 1024 байта теперь хранятся на куче;
+   на стеке занимает лишь указатель (8 байт). Заодно исправлен `AppLogTraceKind::Connect`,
+   который раньше тащил 1024 байта на стек при каждом обращении.
+2. Тело парсера обёрнуто в `Box::new(...)`, массив собирается из `Vec<u8>` через `try_into()`.
+3. Тест обновлён: `AuthData(Box::new([...]))`.
 
-FIX #6 
-- Три константы READ_MODE_ALL/ERRORS/EXCHANGES: u8 заменены enumом ReadMode { All, Errors, Exchanges }`
-- Сигнатура read_log теперь принимает ReadMode вместо u8
-- if/else if/else { panic! } заменён match — компилятор теперь гарантирует полноту перебора вариантов, ветка с panic! стала не нужна
-- Обновлены два вызова в тестах lib.rs и вызов в main.rs
+---
 
-FIX #7
-Два вложенных цикла в lib.rs (for log in logs + for request_id in &request_ids) заменены цепочкой .filter(...).collect(). Проверка наличия request_id упростилась до request_ids.contains(&log.request_id).
+## FIX #3 — Публичный трейт Parse, единая just_parse
 
-FIX #8 
-Избавился от unsafe, RefCell
-Что удалил:
-- RefMutWrapper — был нужен только для BufReader
-- Rc, RefCell, borrow_mut() — колхоз для разделённого владения
-- unsafe { transmute } — обход lifetime'ов, который это требовал
-- Поле reader_rc в LogIterator
+1. Добавлен `pub trait Parse` с единственным методом `parse_str`. В его сигнатуре нет
+   внутренних типов (`Map`, `Delimited`, `Alt` и т.д.) — утечки приватных типов нет.
+   `Parser` и `Parsable` остались приватными.
+2. Бланкетная реализация `impl<T: Parsable> Parse for T` — все типы, реализующие приватный
+   `Parsable`, автоматически получают и публичный `Parse`.
+3. Шесть функций `just_parse_*` заменены одной дженерик-функцией:
+   ```rust
+   pub fn just_parse<T: Parse>(input: &str) -> Result<(&str, T), ParseError>
+   ```
+   В `main.rs` вызов обновлён до `just_parse::<Announcements>(parsing_demo)`.
 
-FIX #9
-Трейт MyReader был workaround-ом для ограничения Rust E0225 — нельзя написать Box<dyn Read + Debug + 'static>, 
-поэтому три ограничения объединялись в один trait. Заменил на дженерик.
+---
 
-- Удалён pub trait MyReader и его blanket impl
-- LogIterator стал LogIterator<R: std::io::Read>
-- read_log стал read_log<R: std::io::Read> — принимает R напрямую, без Box
-- В main.rs: Box<dyn analysis::MyReader> → обычный std::fs::File
-- В тестах: Box::new(SOURCE.as_bytes()) → SOURCE.as_bytes()
+## FIX #4 — Удалён излишний singleton
 
-FIX #10
-- Исправлен баг: WithdrawCash маппился в DepositCash — теперь маппится в WithdrawCash (parse.rs:1380)
-- Новые тесты в parse.rs (test_log_kind): AccessDenied, UnregisterAsset, WithdrawCash
-- Новые тесты в lib.rs:
-   - test_errors_mode — проверяет ReadMode::Errors, ожидает 7 ошибочных строк
-   - test_exchanges_mode — проверяет ReadMode::Exchanges, ожидает 6 биржевых операций
-   - test_request_id_filter — фильтрация по одному и двум request_id
+1. Удалены `LogLineParser` и `LOG_LINE_PARSER` из `parse.rs`. Структура и статик существовали
+   ради `OnceLock`, чтобы не пересобирать парсер на каждом вызове. Но все комбинаторы
+   (`Map`, `Delimited`, `Alt` и т.д.) — zero-sized types: они не хранят данных и не
+   выделяют память. Пересборка дерева парсера ничего не стоит, кэшировать нечего.
+2. В `lib.rs` вместо `LOG_LINE_PARSER.parse(line.trim())` теперь
+   `just_parse::<LogLine>(line.trim())`.
 
-FIX #11
-- args[1] → args.get(1) с проверкой: если аргумент не передан, выводит Usage: <binary> <logfile> и выходит с кодом 1
-- just_parse(...).unwrap() → match с eprintln! и exit(1) при ошибке парсинга
-- File::open(...).unwrap() → match с сообщением failed to open '<file>': <os error> и exit(1)
-- current_dir().unwrap() → unwrap_or_else(|_| "<unknown>".into()) — некритичная ошибка, не прерывает работу
+---
+
+## FIX #5 — Box внутри AppLogKind::Journal
+
+Перешёл на `Journal(Box<AppLogJournalKind>)` вместо `Journal(AppLogJournalKind)`.
+Экономия: `AppLogKind` — 72 → 40 байт, `LogLine` — 88 → 56 байт на стеке.
+
+---
+
+## FIX #6 — enum ReadMode вместо u8-констант
+
+- Три константы `READ_MODE_ALL/ERRORS/EXCHANGES: u8` заменены перечислением:
+  ```rust
+  pub enum ReadMode { All, Errors, Exchanges }
+  ```
+- Сигнатура `read_log` принимает `ReadMode` вместо `u8`.
+- `if/else if/else { panic! }` заменён `match` — компилятор гарантирует полноту
+  перебора вариантов, ветка с `panic!` стала не нужна.
+- Обновлены вызовы в тестах `lib.rs` и в `main.rs`.
+
+---
+
+## FIX #7 — Итератор вместо for-цикла
+
+Два вложенных цикла в `lib.rs` (`for log in logs` + `for request_id in &request_ids`)
+заменены цепочкой `.filter(...).collect()`. Проверка упростилась до
+`request_ids.contains(&log.request_id)`.
+
+---
+
+## FIX #8 — Устранены unsafe и RefCell
+
+Удалено:
+- `RefMutWrapper` — был нужен только для `BufReader`
+- `Rc`, `RefCell`, `borrow_mut()` — колхоз для разделённого владения
+- `unsafe { transmute }` — обход lifetime-ов
+- Поле `reader_rc` в `LogIterator`
+
+`LogIterator` теперь владеет `std::io::Lines<BufReader<Box<dyn MyReader>>>` напрямую.
+
+---
+
+## FIX #9 — Дженерик вместо трейт-объекта MyReader
+
+`MyReader` был workaround для ограничения Rust E0225 — нельзя написать
+`Box<dyn Read + Debug + 'static>`, поэтому три ограничения объединялись в один суpertrait.
+Заменено на дженерик:
+
+- Удалены `pub trait MyReader` и его blanket impl.
+- `LogIterator<R: std::io::Read>` — теперь generic.
+- `read_log<R: std::io::Read>` — принимает `R` напрямую, без `Box`.
+- `main.rs`: `Box<dyn analysis::MyReader>` → обычный `std::fs::File`.
+- Тесты: `Box::new(SOURCE.as_bytes())` → `SOURCE.as_bytes()`.
+
+---
+
+## FIX #10 — Баг WithdrawCash и новые тесты
+
+- **Исправлен баг:** `WithdrawCash` маппился в `DepositCash` (`parse.rs:1380`).
+- Новые тесты в `parse.rs` (`test_log_kind`): `AccessDenied`, `UnregisterAsset`, `WithdrawCash`.
+- Новые тесты в `lib.rs`:
+  - `test_errors_mode` — `ReadMode::Errors`, ожидает 7 ошибочных строк.
+  - `test_exchanges_mode` — `ReadMode::Exchanges`, ожидает 6 биржевых операций.
+  - `test_request_id_filter` — фильтрация по одному и двум `request_id`.
+
+---
+
+## FIX #11 — Убраны force-unwrap в main.rs
+
+- `args[1]` → `args.get(1)`: если аргумент не передан — `Usage: <binary> <logfile>` + `exit(1)`.
+- `just_parse(...).unwrap()` → `match` с `eprintln!` и `exit(1)` при ошибке парсинга.
+- `File::open(...).unwrap()` → `match` с сообщением `failed to open '<file>': <os error>` + `exit(1)`.
+- `current_dir().unwrap()` → `unwrap_or_else(|_| "<unknown>".into())` — некритичная ошибка,
+  не прерывает работу.
