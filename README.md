@@ -50,3 +50,6 @@ FIX #6
 - Сигнатура read_log теперь принимает ReadMode вместо u8
 - if/else if/else { panic! } заменён match — компилятор теперь гарантирует полноту перебора вариантов, ветка с panic! стала не нужна
 - Обновлены два вызова в тестах lib.rs и вызов в main.rs
+
+FIX #7
+Два вложенных цикла в lib.rs (for log in logs + for request_id in &request_ids) заменены цепочкой .filter(...).collect(). Проверка наличия request_id упростилась до request_ids.contains(&log.request_id).
