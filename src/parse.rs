@@ -151,7 +151,7 @@ fn do_unquote<'a>(input: &'a str) -> Result<(&'a str, String), ParseError> {
 fn do_unquote_non_escaped<'a>(input: &'a str) -> Result<(&'a str, String), ParseError> {
     let input = input.strip_prefix("\"").ok_or(ParseError::ExpectedTag)?;
     let quote_byteidx = input.find('"').ok_or(ParseError::UnexpectedEnd)?;
-    if 0 == quote_byteidx || Some("\\") == input.get(quote_byteidx - 1..quote_byteidx) {
+    if quote_byteidx > 0 && Some("\\") == input.get(quote_byteidx - 1..quote_byteidx) {
         return Err(ParseError::UnclosedQuote);
     }
     Ok((
@@ -1504,6 +1504,7 @@ mod test {
             do_unquote_non_escaped(r#"411"#),
             Err(ParseError::ExpectedTag)
         );
+        assert_eq!(do_unquote_non_escaped(r#""""#), Ok(("", "".into())));
     }
 
     #[test]

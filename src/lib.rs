@@ -32,7 +32,9 @@ impl<R: std::io::Read> Iterator for LogIterator<R> {
             if trimmed.is_empty() {
                 continue;
             }
-            let (remaining, result) = just_parse::<LogLine>(trimmed).ok()?;
+            let Some((remaining, result)) = just_parse::<LogLine>(trimmed).ok() else {
+                continue;
+            };
             if remaining.trim().is_empty() {
                 return Some(result);
             }
@@ -171,6 +173,13 @@ App::Journal BuyAsset UserBacket{"user_id":"Alice","backet":Backet{"asset_id":"m
                 .iter()
                 .all(|log| matches!(&log.kind, LogKind::App(AppLogKind::Journal(_))))
         );
+    }
+
+    #[test]
+    fn test_unparseable_line_is_skipped() {
+        let source = "System::Error NetworkError \"down\" requestid=1\nnot a log line\nApp::Error SystemError \"net\" requestid=2";
+        let parsed = read_log(source.as_bytes(), ReadMode::All, vec![]);
+        assert_eq!(parsed.len(), 2);
     }
 
     #[test]
