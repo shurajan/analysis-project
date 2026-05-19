@@ -44,3 +44,9 @@ FIX #4 излишний singleton
 
 FIX #5 - pub enum AppLogKind (можно было обойтись, так как экономия всего 32 байта в стеке)
 Перешел на Journal(Box<AppLogJournalKind>) вместо Journal(AppLogJournalKind)                                                                                                                                                                         
+
+FIX #6 
+- Три константы READ_MODE_ALL/ERRORS/EXCHANGES: u8 заменены enumом ReadMode { All, Errors, Exchanges }`
+- Сигнатура read_log теперь принимает ReadMode вместо u8
+- if/else if/else { panic! } заменён match — компилятор теперь гарантирует полноту перебора вариантов, ветка с panic! стала не нужна
+- Обновлены два вызова в тестах lib.rs и вызов в main.rs
