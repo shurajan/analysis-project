@@ -53,3 +53,13 @@ FIX #6
 
 FIX #7
 Два вложенных цикла в lib.rs (for log in logs + for request_id in &request_ids) заменены цепочкой .filter(...).collect(). Проверка наличия request_id упростилась до request_ids.contains(&log.request_id).
+
+FIX #8 
+Избавился от unsafe, RefCell
+Что удалил:
+- RefMutWrapper — был нужен только для BufReader
+- Rc, RefCell, borrow_mut() — колхоз для разделённого владения
+- unsafe { transmute } — обход lifetime'ов, который это требовал
+- Поле reader_rc в LogIterator
+
+LogIterator теперь просто владеет BufReader<Box<dyn MyReader>>, а read_log принимает Box<dyn MyReader> напрямую. Фильтрация пустых строк перенесена в next() через loop/continue.

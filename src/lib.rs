@@ -11,18 +11,6 @@ pub enum ReadMode {
     Exchanges,
 }
 
-/// Обёртка, без которой не выполнено требование `std::io::BufReader<T: std::io::Read>`
-#[derive(Debug)]
-struct RefMutWrapper<'a, T>(std::cell::RefMut<'a, T>);
-impl<'a, T> std::io::Read for RefMutWrapper<'a, T>
-where
-    T: std::io::Read,
-{
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.0.read(buf)
-    }
-}
-
 /// Для `Box<dyn много трейтов, помимо auto-трейтов>`, (`rustc E0225`)
 /// `only auto traits can be used as additional traits in a trait object`
 /// `consider creating a new trait with all of these as supertraits and using that trait here instead`
@@ -30,54 +18,33 @@ pub trait MyReader: std::io::Read + std::fmt::Debug + 'static {}
 impl<T: std::io::Read + std::fmt::Debug + 'static> MyReader for T {}
 // подсказка: вместо trait-объекта можно дженерик
 /// Итератор, на выходе которого - строки распарсенной структуры данных
-#[allow(dead_code)]
-#[derive(Debug)]
 struct LogIterator {
-    lines: std::iter::Filter<
-        std::io::Lines<std::io::BufReader<RefMutWrapper<'static, Box<dyn MyReader>>>>,
-        fn(&Result<String, std::io::Error>) -> bool,
-    >,
-    reader_rc: std::rc::Rc<std::cell::RefCell<Box<dyn MyReader>>>,
+    lines: std::io::Lines<std::io::BufReader<Box<dyn MyReader>>>,
 }
 impl LogIterator {
-    fn new(r: std::rc::Rc<std::cell::RefCell<Box<dyn MyReader>>>) -> Self {
+    fn new(reader: Box<dyn MyReader>) -> Self {
         use std::io::BufRead;
-        // подсказка: unsafe избыточен, да и весь rc - тоже
-        // примечание автора прототипа:
-        // > Мотивация: хочу позаимствовать RefCell,
-        // > но боюсь, что Rc протухнет - поэтому буду хранить и Rc и RefMut.
-        // > Я знаю, что деструкторы полей структуры вызываются в
-        // > порядке объявления в структуре - то есть сначала будет удалён
-        // > мой RefMutWrapper, а уже потом и весь исходный reader_rc
-        let the_borrow = r.borrow_mut();
-        let the_borrow = unsafe { std::mem::transmute::<_, _>(the_borrow) };
         Self {
-            lines: std::io::BufReader::with_capacity(4096, RefMutWrapper(the_borrow))
-                .lines()
-                .filter(|line_res| {
-                    !line_res
-                        .as_ref()
-                        .ok()
-                        .map(|line| line.trim().is_empty())
-                        .unwrap_or(false)
-                }),
-            reader_rc: r,
+            lines: std::io::BufReader::with_capacity(4096, reader).lines(),
         }
     }
 }
 impl Iterator for LogIterator {
     type Item = parse::LogLine;
     fn next(&mut self) -> Option<Self::Item> {
-        let line = self.lines.next()?.ok()?;
-        let (remaining, result) = just_parse::<LogLine>(line.trim()).ok()?;
-        remaining.trim().is_empty().then_some(result)
+        loop {
+            let line = self.lines.next()?.ok()?;
+            let trimmed = line.trim();
+            if trimmed.is_empty() { continue; }
+            let (remaining, result) = just_parse::<LogLine>(trimmed).ok()?;
+            if remaining.trim().is_empty() { return Some(result); }
+        }
     }
 }
 
-// подсказка: RefCell вообще не нужен
 /// Принимает поток байт, отдаёт отфильтрованные и распарсенные логи
 pub fn read_log(
-    input: std::rc::Rc<std::cell::RefCell<Box<dyn MyReader>>>,
+    input: Box<dyn MyReader>,
     mode: ReadMode,
     request_ids: Vec<u32>,
 ) -> Vec<LogLine> {
@@ -180,12 +147,8 @@ App::Journal BuyAsset UserBacket{"user_id":"Alice","backet":Backet{"asset_id":"m
 
     #[test]
     fn test_all() {
-        let refcell1: std::rc::Rc<std::cell::RefCell<Box<dyn MyReader>>> =
-            std::rc::Rc::new(std::cell::RefCell::new(Box::new(SOURCE1.as_bytes())));
-        assert_eq!(read_log(refcell1.clone(), ReadMode::All, vec![]).len(), 1);
-        let refcell: std::rc::Rc<std::cell::RefCell<Box<dyn MyReader>>> =
-            std::rc::Rc::new(std::cell::RefCell::new(Box::new(SOURCE.as_bytes())));
-        let all_parsed = read_log(refcell.clone(), ReadMode::All, vec![]);
+        assert_eq!(read_log(Box::new(SOURCE1.as_bytes()), ReadMode::All, vec![]).len(), 1);
+        let all_parsed = read_log(Box::new(SOURCE.as_bytes()), ReadMode::All, vec![]);
         println!("all parsed:");
         all_parsed
             .iter()
