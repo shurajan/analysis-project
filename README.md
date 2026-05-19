@@ -62,4 +62,13 @@ FIX #8
 - unsafe { transmute } — обход lifetime'ов, который это требовал
 - Поле reader_rc в LogIterator
 
-LogIterator теперь просто владеет BufReader<Box<dyn MyReader>>, а read_log принимает Box<dyn MyReader> напрямую. Фильтрация пустых строк перенесена в next() через loop/continue.
+FIX #9
+Трейт MyReader был workaround-ом для ограничения Rust E0225 — нельзя написать Box<dyn Read + Debug + 'static>, 
+поэтому три ограничения объединялись в один trait. Заменил на дженерик.
+
+- Удалён pub trait MyReader и его blanket impl
+- LogIterator стал LogIterator<R: std::io::Read>
+- read_log стал read_log<R: std::io::Read> — принимает R напрямую, без Box
+- В main.rs: Box<dyn analysis::MyReader> → обычный std::fs::File
+- В тестах: Box::new(SOURCE.as_bytes()) → SOURCE.as_bytes()
+

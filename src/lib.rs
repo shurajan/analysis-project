@@ -11,43 +11,37 @@ pub enum ReadMode {
     Exchanges,
 }
 
-/// Для `Box<dyn много трейтов, помимо auto-трейтов>`, (`rustc E0225`)
-/// `only auto traits can be used as additional traits in a trait object`
-/// `consider creating a new trait with all of these as supertraits and using that trait here instead`
-pub trait MyReader: std::io::Read + std::fmt::Debug + 'static {}
-impl<T: std::io::Read + std::fmt::Debug + 'static> MyReader for T {}
-// подсказка: вместо trait-объекта можно дженерик
 /// Итератор, на выходе которого - строки распарсенной структуры данных
-struct LogIterator {
-    lines: std::io::Lines<std::io::BufReader<Box<dyn MyReader>>>,
+struct LogIterator<R: std::io::Read> {
+    lines: std::io::Lines<std::io::BufReader<R>>,
 }
-impl LogIterator {
-    fn new(reader: Box<dyn MyReader>) -> Self {
+impl<R: std::io::Read> LogIterator<R> {
+    fn new(reader: R) -> Self {
         use std::io::BufRead;
         Self {
             lines: std::io::BufReader::with_capacity(4096, reader).lines(),
         }
     }
 }
-impl Iterator for LogIterator {
-    type Item = parse::LogLine;
+impl<R: std::io::Read> Iterator for LogIterator<R> {
+    type Item = LogLine;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let line = self.lines.next()?.ok()?;
             let trimmed = line.trim();
-            if trimmed.is_empty() { continue; }
+            if trimmed.is_empty() {
+                continue;
+            }
             let (remaining, result) = just_parse::<LogLine>(trimmed).ok()?;
-            if remaining.trim().is_empty() { return Some(result); }
+            if remaining.trim().is_empty() {
+                return Some(result);
+            }
         }
     }
 }
 
 /// Принимает поток байт, отдаёт отфильтрованные и распарсенные логи
-pub fn read_log(
-    input: Box<dyn MyReader>,
-    mode: ReadMode,
-    request_ids: Vec<u32>,
-) -> Vec<LogLine> {
+pub fn read_log<R: std::io::Read>(input: R, mode: ReadMode, request_ids: Vec<u32>) -> Vec<LogLine> {
     LogIterator::new(input)
         .filter(|log| {
             (request_ids.is_empty() || request_ids.contains(&log.request_id))
@@ -147,8 +141,8 @@ App::Journal BuyAsset UserBacket{"user_id":"Alice","backet":Backet{"asset_id":"m
 
     #[test]
     fn test_all() {
-        assert_eq!(read_log(Box::new(SOURCE1.as_bytes()), ReadMode::All, vec![]).len(), 1);
-        let all_parsed = read_log(Box::new(SOURCE.as_bytes()), ReadMode::All, vec![]);
+        assert_eq!(read_log(SOURCE1.as_bytes(), ReadMode::All, vec![]).len(), 1);
+        let all_parsed = read_log(SOURCE.as_bytes(), ReadMode::All, vec![]);
         println!("all parsed:");
         all_parsed
             .iter()
